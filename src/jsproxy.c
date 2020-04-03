@@ -533,8 +533,13 @@ JsBoundMethod_cnew(int this_, const char* name)
 int
 JsProxy_Check(PyObject* x)
 {
-  return (PyObject_TypeCheck(x, &JsProxyType) ||
-          PyObject_TypeCheck(x, &JsBoundMethodType));
+  return PyObject_TypeCheck(x, &JsProxyType);
+}
+
+int
+JsBoundMethod_Check(PyObject* x)
+{
+  return PyObject_TypeCheck(x, &JsBoundMethodType);
 }
 
 int
@@ -542,6 +547,13 @@ JsProxy_AsJs(PyObject* x)
 {
   JsProxy* js_proxy = (JsProxy*)x;
   return hiwire_incref(js_proxy->js);
+}
+
+int
+JsBoundMethod_AsJs(PyObject* x)
+{
+  JsBoundMethod* js_bound_method = (JsBoundMethod*)x;
+  return hiwire_incref(hiwire_get_member_string(js_bound_method->this_, (int)js_bound_method->name));
 }
 
 int

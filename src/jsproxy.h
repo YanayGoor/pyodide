@@ -21,12 +21,18 @@ JsProxy_cnew(int v);
 int
 JsProxy_Check(PyObject* x);
 
+int
+JsBoundMethod_Check(PyObject* x);
+
 /** Grab the underlying Javascript object from the JsProxy object.
  *  \param x The JsProxy object.  Must confirm that it is a JsProxy object using
  *    JsProxy_Check. \return The Javascript object.
  */
 int
 JsProxy_AsJs(PyObject* x);
+
+int
+JsBoundMethod_AsJs(PyObject* x);
 
 /** Initialize global state for the JsProxy functionality. */
 int
