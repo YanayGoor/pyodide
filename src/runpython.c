@@ -6,6 +6,8 @@
 
 #include "hiwire.h"
 #include "python2js.h"
+#include "pyproxy.h"
+#include "js2python.h"
 
 PyObject* globals;
 
@@ -13,8 +15,11 @@ PyObject* eval_code;
 PyObject* find_imports;
 
 int
-_runPython(char* code)
+_runPython(char* code, PyObject* _globals)
 {
+  if (!_globals) {
+    _globals = globals;
+  }
   PyObject* py_code;
   py_code = PyUnicode_FromString(code);
   if (py_code == NULL) {
@@ -22,7 +27,7 @@ _runPython(char* code)
   }
 
   PyObject* ret =
-    PyObject_CallFunctionObjArgs(eval_code, py_code, globals, NULL);
+    PyObject_CallFunctionObjArgs(eval_code, py_code, _globals, NULL);
 
   if (ret == NULL) {
     return pythonexc2js();
@@ -31,6 +36,15 @@ _runPython(char* code)
   int id = python2js(ret);
   Py_DECREF(ret);
   return id;
+}
+
+int
+_newEnv()
+{
+  PyObject* dict = PyDict_New();
+  // we want a dummy expression so the dict will receive the __builtins__ module.
+  _runPython("5", dict);
+  return pyproxy_new((int)dict);
 }
 
 int
@@ -54,22 +68,28 @@ _findImports(char* code)
 }
 
 EM_JS(int, runpython_init_js, (), {
-  Module._runPythonInternal = function(pycode)
+  Module._runPythonInternal = function(pycode, globals)
   {
-    var idresult = Module.__runPython(pycode);
+    if (globals) {
+      var globalsid = Module.hiwire_new_value(globals);
+      globals = Module._js2python(globalsid);
+    } else {
+      globals = 0;
+    }
+    var idresult = Module.__runPython(pycode, globals);
     var jsresult = Module.hiwire_get_value(idresult);
     Module.hiwire_decref(idresult);
     _free(pycode);
     return jsresult;
   };
 
-  Module.runPython = function(code)
+  Module.runPython = function(code, globals)
   {
     var pycode = allocate(intArrayFromString(code), 'i8', ALLOC_NORMAL);
-    return Module._runPythonInternal(pycode);
+    return Module._runPythonInternal(pycode, globals);
   };
 
-  Module.runPythonAsync = function(code, messageCallback, errorCallback)
+  Module.runPythonAsync = function(code, globals, messageCallback, errorCallback)
   {
     var pycode = allocate(intArrayFromString(code), 'i8', ALLOC_NORMAL);
 
@@ -80,7 +100,7 @@ EM_JS(int, runpython_init_js, (), {
     var internal = function(resolve, reject)
     {
       try {
-        resolve(Module._runPythonInternal(pycode));
+        resolve(Module._runPythonInternal(pycode, globals));
       } catch (e) {
         reject(e);
       }
@@ -164,6 +184,18 @@ EM_JS(int, runpython_finalize_js, (), {
   {
     Module.runPython("import pyodide");
     return Module.runPython("pyodide.__version__");
+  };
+  return 0;
+});
+
+EM_JS(int, runpython_init_new_env, (), {
+  Module.newEnv = function()
+  {
+    var idresult = Module.__newEnv();
+    var jsresult = Module.hiwire_get_value(idresult);
+    Module.hiwire_decref(idresult);
+    return jsresult;
+
   };
   return 0;
 });

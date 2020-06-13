@@ -13,4 +13,7 @@ runpython_init_py();
 int
 runpython_finalize_js();
 
+int
+runpython_init_new_env();
+
 #endif /* RUNPYTHON_H */
